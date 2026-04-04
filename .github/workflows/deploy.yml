@@ -10,9 +10,9 @@ jobs:
       - name: Trigger Coolify Deploy
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            UUID="PROD_UUID_PLACEHOLDER"
+            UUID="xw7rqd2vw8cp3l740t93iiop"
           else
-            UUID="STG_UUID_PLACEHOLDER"
+            UUID="asu27os839w4ukmtmdbtt36v"
           fi
           curl -s -X POST \
             "http://95.216.191.135:8000/api/v1/deploy?uuid=${UUID}&force=true" \
