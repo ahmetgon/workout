@@ -47,7 +47,7 @@ function GifImage({ src, fallback, alt }: { src?: string; fallback?: string; alt
       src={currentSrc}
       alt={alt}
       onError={handleError}
-      className="w-full h-full object-cover"
+      className="w-full h-full object-contain"
       loading="lazy"
     />
   );

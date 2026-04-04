@@ -1,5 +1,5 @@
-// Maps exercise names to GIF URLs
-// Sources: Giphy, ExerciseDB, wger — uncertain ones noted with comments
+// Maps exercise names to local GIF/webp files under /exercises/
+// All assets live in public/exercises/ — served as static files by Vite
 
 export interface ExerciseMedia {
   gif: string;
@@ -9,68 +9,69 @@ export interface ExerciseMedia {
 const PLACEHOLDER = '/exercises/placeholder.gif';
 
 export const exerciseMediaMap: Record<string, ExerciseMedia> = {
-  // --- Main exercises (confirmed Giphy URLs) ---
-  'Jumping Jack': {
-    gif: 'https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-  'Push-up': {
-    gif: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-  'Bodyweight Squat': {
-    gif: 'https://media.giphy.com/media/2x6ZLj05SFvHy/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-  'Mountain Climber': {
-    // Reusing jumping jack gif — uncertain dedicated URL
-    gif: 'https://media.giphy.com/media/VbnUQpnihPSIgIXuZv/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-  'Glute Bridge': {
-    gif: 'https://media.giphy.com/media/4WnGUvFuL4Pq0/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-  'Forearm Plank': {
-    gif: 'https://media.giphy.com/media/GXoiIGSZHarC0/giphy.gif',
-    fallbackGif: PLACEHOLDER,
-  },
-
-  // --- Warmup & cooldown — placeholder (uncertain external URLs) ---
+  // --- Warmup ---
   'Yerinde hafif yürüyüş / diz çekme': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/high-knees-march.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Kol çevirme': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/arm-circles.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Cat-Cow': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/Cat-Cow-Stretch.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Squat to Reach': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/squat-to-reach.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Glute Bridge': {
+    gif: '/exercises/glute-bridge.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Half Jumping Jack': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/half-jumping-jack.gif',
     fallbackGif: PLACEHOLDER,
   },
+
+  // --- Main ---
+  'Jumping Jack': {
+    gif: '/exercises/jumping-jacks.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Push-up': {
+    gif: '/exercises/pushups.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Bodyweight Squat': {
+    gif: '/exercises/bodyweight-squat.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Mountain Climber': {
+    gif: '/exercises/Mountain-Climbers.webp',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Forearm Plank': {
+    gif: '/exercises/forearm-plank.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+
+  // --- Cooldown ---
   "Child's Pose": {
-    gif: PLACEHOLDER,
+    gif: '/exercises/chlids-pose.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Cobra Stretch': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/cobra-stretch.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Hamstring Stretch': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/Standing-Hamstring-Stretch.gif',
     fallbackGif: PLACEHOLDER,
   },
   'Deep Breathing': {
-    gif: PLACEHOLDER,
+    gif: '/exercises/deep-breath.gif',
     fallbackGif: PLACEHOLDER,
   },
 };

@@ -1,7 +1,7 @@
 import { WorkoutPlan } from '../types';
 import { defaultWorkoutPlan } from '../data/defaultWorkoutPlan';
 
-const STORAGE_KEY = 'workout_plan_v1';
+const STORAGE_KEY = 'workout_plan_v2'; // v2: local GIF paths
 
 /** Load plan from localStorage, fall back to default */
 export function loadPlan(): WorkoutPlan {

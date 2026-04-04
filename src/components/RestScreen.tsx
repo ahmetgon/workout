@@ -21,7 +21,7 @@ function SmallGif({ src, fallback, alt }: { src?: string; fallback?: string; alt
       src={currentSrc}
       alt={alt}
       onError={() => setCurrentSrc(fallback || '/exercises/placeholder.gif')}
-      className="w-full h-full object-cover"
+      className="w-full h-full object-contain"
       loading="lazy"
     />
   );
