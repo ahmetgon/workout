@@ -1,0 +1,19 @@
+name: Deploy to Coolify
+on:
+  push:
+    branches: [develop, main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify Deploy
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            UUID="PROD_UUID_PLACEHOLDER"
+          else
+            UUID="STG_UUID_PLACEHOLDER"
+          fi
+          curl -s -X POST \
+            "http://95.216.191.135:8000/api/v1/deploy?uuid=${UUID}&force=true" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}"
