@@ -1,49 +1,5 @@
 import { WorkoutPlan, WorkoutStep } from '../types';
-import { getMedia } from './exerciseMediaMap';
-
-// Simple ID generator — no nanoid dependency needed
-function makeId(): string {
-  return `step_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function exercise(
-  name: string,
-  duration: number,
-  phase: WorkoutStep['phase'],
-  round?: number
-): WorkoutStep {
-  const media = getMedia(name);
-  return {
-    id: makeId(),
-    type: 'exercise',
-    name,
-    duration,
-    phase,
-    round,
-    gif: media.gif,
-    fallbackGif: media.fallbackGif,
-    source: 'default',
-  };
-}
-
-function rest(
-  name: string,
-  duration: number,
-  phase: WorkoutStep['phase'],
-  round?: number
-): WorkoutStep {
-  return {
-    id: makeId(),
-    type: 'rest',
-    name,
-    duration,
-    phase,
-    round,
-    gif: '/exercises/placeholder.gif',
-    fallbackGif: '/exercises/placeholder.gif',
-    source: 'default',
-  };
-}
+import { exercise, rest } from './stepFactory';
 
 // Warmup exercises (30s each)
 const warmupSteps: WorkoutStep[] = [

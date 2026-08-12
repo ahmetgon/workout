@@ -1,480 +1,871 @@
-# GitHub > Coolify Deployment Guide
+# Deploy Guide — CX53 / Coolify · Yeni Proje Başlangıcı
 
-> Bu dosyayi yeni projenin kok dizinine kopyala.
-> Claude Code / AI agent bu dosyayi okuyarak projeyi sifirdan Coolify'a deploy edebilir.
-> RhinoRunner projesinde yasanan tum sorunlar ve cozumleri dahil edilmistir.
+  
+
+Yeni bir projeyi sıfırdan CX53'e almak için tek referans. Sırayla izlenir.
+
+  
+
+Bu doküman bir kurulum rehberinden fazlası: **2026 boyunca bu sunucuda bulduğumuz her güvenlik
+
+açığının tekrar etmemesi için gereken adımlar sıraya gömülüdür.** Adımları atlarsan aynı
+
+açıkları yeniden üretirsin — hangisini niye yaptığımız her adımın altında yazıyor.
+
+  
+
+> **Sır kuralı:** Bu dosyaya ve projenin hiçbir dosyasına (log.md, CLAUDE.md, README) düz
+
+> token/parola YAZILMAZ. Sırlar Bitwarden'da, çalışma anında `bw get` ile çözülür.
+
+  
 
 ---
 
-## SUNUCU & ERISIM BILGILERI
+  
 
-| Alan | Deger |
-|------|-------|
-| Sunucu IP | 95.216.191.135 |
-| SSH | `sshpass -p 'gReLFcsLbUE3' ssh -o StrictHostKeyChecking=no root@95.216.191.135` |
-| Coolify Dashboard | http://95.216.191.135:8000 |
-| Coolify API Base | http://95.216.191.135:8000/api/v1 |
-| Coolify API Token | I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3 |
-| Server UUID | xhqd61ecwp6n3k9068zqo6i6 |
-| Traefik Proxy | Port 80/443, Let's Encrypt aktif |
-| GitHub Hesabi | ahmetgon (gh CLI authenticated) |
+## 0. Başlamadan — 8 kural
+
+  
+
+Bunlar tavsiye değil; her biri bu sunucuda gerçekten yaşanmış bir olayın karşılığı.
+
+  
+
+| # | Kural | Neyin tekrarını önlüyor |
+
+|---|---|---|
+
+| 1 | Her env değişkeni **`"is_buildtime": false`** ile yazılır | Coolify varsayılanı `true` → sırlar `--build-arg` olarak imaj katmanlarına düz metin yazılıyor. 2026-08-07'de **63 uygulamada** bulundu |
+
+| 2 | `NEXT_PUBLIC_*` / `VITE_*` içine **asla sır konmaz** | Bunlar zaten tarayıcı bundle'ında. `VITE_STRAPI_TOKEN` gibi örnekler bulundu — build-arg'ı kapatmak bunları kurtarmaz |
+
+| 3 | Veritabanı **public port açılmaz** | `eu-onarim-enerjisi` DB'si 5432'den internete açıktı; 20 gün boyunca **30.737 parola denemesi** yedi. İhlal olmadı, şans eseri |
+
+| 4 | Her projeye **kendi DB + kendi kullanıcısı** | `postgres` superuser'ı app'in `DATABASE_URL`'inde asla olmaz |
+
+| 5 | `.env` **git'e girmez**, sırlar Bitwarden'da | 2026-06'da 45 dosyaya yayılmış token temizliği yapıldı |
+
+| 6 | Deploy sonrası **yedek kapsamı doğrulanır** | 2026-07-10'da yedek script'i 23 DB'yi sessizce atlıyordu, log yine "OK" yazıyordu |
+
+| 7 | İmaj boyutu **ölçülür** | `aday-worker` tek başına 31 GB'dı; %71'i CX53'te GPU olmadığı hâlde inen CUDA'ydı |
+
+| 8 | Kimlik doğrulama hatasında **404 dön, 401 değil** | 401 "burada korunan bir şey var" bilgisini verir |
+
+  
 
 ---
 
-## SSH DEPLOY KEY (PRIVATE REPO DESTEGI)
+  
 
-Tum repolar private. Her yeni proje icin bu key kullanilmali.
+## 1. Sunucu & Erişim
 
-| Alan | Deger |
-|------|-------|
-| Coolify Key ID | 1 |
-| Coolify Key UUID | sq0qauni0lyegib6wik6lrqf |
-| Public Key | `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDklUYvM+Z4ifOiNdvuMYIkR+5mGfA01f19ktPCKlSWd coolify-deploy@ahmetgo.com` |
+  
 
-### Her Yeni Repo Icin Deploy Key Ekleme
+| | Değer |
+
+|---|---|
+
+| **Sunucu** | CX53 (x86, 16 vCPU / 32 GB RAM / 320 GB disk), Hetzner **Nuremberg (nbg1)** |
+
+| **IP** | `167.233.159.42` |
+
+| **OS** | Ubuntu 26.04 LTS |
+
+| **SSH** | `ssh -i ~/.ssh/id_ed25519 root@167.233.159.42` — **publickey only**, `id_rsa` çalışmaz |
+
+| **Coolify** | v4.1.2 · **`https://coolify.rhinorunner.net`** (TLS, tünel gerekmez) |
+
+| **Coolify API token** | Bitwarden: `cx53-claude-migration` |
+
+| **server uuid** | `gl596l61nn16v24mzqsi2v0e` |
+
+| **GitHub App** | `coolify-nbg` — uuid `d12n4gdxfywvpgn09v2tyq5x` |
+
+| **Runtime IDS** | Falco (modern eBPF) **aktif** |
+
+  
 
 ```bash
-gh api repos/{owner}/{repo}/keys \
-  --input - <<'EOF'
-{
-  "title": "Coolify Deploy Key",
-  "key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDklUYvM+Z4ifOiNdvuMYIkR+5mGfA01f19ktPCKlSWd coolify-deploy@ahmetgo.com",
-  "read_only": true
-}
-EOF
+
+export BW_SESSION=$(bw unlock --raw)
+
+T=$(bw get password cx53-claude-migration)
+
+B=https://coolify.rhinorunner.net/api/v1
+
+  
+
+curl -s -H "Authorization: Bearer $T" $B/version # 4.1.2 dönmeli
+
 ```
 
-> Deploy key eklenmeden Coolify private repo'yu cekemez!
+  
+
+> **Port 8000 artık kullanılmıyor.** Dışarıdan erişilemiyor (`DOCKER-USER` DROP + allowlist).
+
+> Eskiden gereken `ssh -L 8003:localhost:8000` tüneli **artık gerekmiyor** — TLS endpoint var.
+
+  
+
+> **Tek sunucu var.** Eski `65.109.141.55` (CAX31) ve `95.216.191.135` sunucuları konsolide
+
+> edildi; yeni proje kurulumunda hiçbirine ihtiyaç yok. 65'te yalnızca smurfssubsea statik
+
+> sitesi kaldı ve o da kapatılma sırasında.
+
+  
 
 ---
 
-## DOMAIN STRATEJISI
+  
 
-Cloudflare'de wildcard A kaydi mevcut:
+## 2. Ön hazırlık — repo ve sırlar
 
-```
-*.ahmetgo.com -> 95.216.191.135 (Proxy OFF / DNS only)
-```
-
-Her proje subdomain bazli:
-
-```
-<proje>.ahmetgo.com          -> production
-test.<proje>.ahmetgo.com     -> staging
-```
-
-> **KRITIK:** Cloudflare proxy KAPALI olmali (gri bulut). SSL'i Coolify/Traefik (Let's Encrypt) veriyor. Proxy acik olursa SSL cakismasi yasanir.
->
-> Yeni proje eklerken DNS'e dokunmaya gerek yok -- wildcard tum subdomain'leri karsiliyor.
-
----
-
-## GIT BRANCHING STRATEJISI
-
-```
-main      -> production deploy (canli site)
-develop   -> staging deploy (test sitesi)
-```
-
-### Gunluk Calisma Akisi
-
-1. `develop` branch'te calis, commit & push et
-2. Push -> GitHub Actions -> Coolify API -> staging'e otomatik deploy
-3. Staging'de test et
-4. GitHub'da PR ac: `develop` -> `main`, merge et
-5. Merge -> GitHub Actions -> Coolify API -> production'a otomatik deploy
-
-> **KURAL:** Asla dogrudan `main`'e push yapma. Her zaman `develop`'a push, test et, sonra merge.
-
----
-
-## COOLIFY PROJE YAPISI
-
-```
-Coolify Project: <proje-adi>
-+-- Environment: production
-|   +-- Branch: main
-|   +-- Domain: https://<proje>.ahmetgo.com
-|   +-- Auto deploy: GitHub Actions
-+-- Environment: staging
-    +-- Branch: develop
-    +-- Domain: https://test.<proje>.ahmetgo.com
-    +-- Auto deploy: GitHub Actions
-```
-
----
-
-## DEPLOY KURULUM ADIMLARI
-
-### Adim 0: Proje Hazirligini Yap (Build Uyumlulugu)
-
-Node.js projeleri icin deploy oncesi:
-
-1. `.node-version` dosyasi olustur:
-```bash
-echo "20" > .node-version
-```
-
-2. `package.json`'a `engines` ekle:
-```json
-"engines": {
-  "node": ">=20.0.0"
-}
-```
-
-3. Commit & push et.
-
-> **NEDEN:** Nixpacks `.node-version` veya `engines` olmadan eski Node kullanabilir. `npm ci` komutu lockfileVersion 3 ile uyumsuz olabiliyor.
-
-#### Vite Projesi Icin Ek Ayarlar
-
-Vite development server'i varsayilan olarak sadece `localhost`'u dinler. Coolify container icinde disaridan erisilemez. `package.json` preview/start komutunu ayarla:
-
-```json
-{
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173"
-  }
-}
-```
-
-Veya `vite.config.ts`'de:
-```typescript
-export default defineConfig({
-  server: { host: '0.0.0.0' },
-  preview: { host: '0.0.0.0', port: 4173 }
-})
-```
-
-> **Static site olarak deploy edeceksen** (onerilen): Vite `build` komutu `dist/` klasorune statik dosyalar uretir. Coolify'da `Static` build pack kullanabilirsin veya Nixpacks ile basit bir Nginx/serve yapisi kurabilirsin.
-
-**Nixpacks ile statik serve icin `package.json`:**
-```json
-{
-  "scripts": {
-    "build": "vite build",
-    "start": "npx serve dist -s -l 3000"
-  }
-}
-```
-
-`serve` dependency olarak ekle:
-```bash
-npm install -D serve
-```
-
----
-
-### Adim 1: GitHub Repo Hazirligi
+  
 
 ```bash
-# 1a. Deploy key ekle (private repo icin zorunlu)
-gh api repos/{owner}/{repo}/keys \
-  --input - <<'EOF'
-{
-  "title": "Coolify Deploy Key",
-  "key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDklUYvM+Z4ifOiNdvuMYIkR+5mGfA01f19ktPCKlSWd coolify-deploy@ahmetgo.com",
-  "read_only": true
-}
-EOF
 
-# 1b. develop branch olustur (yoksa)
-gh api repos/{owner}/{repo}/git/refs \
-  -f ref="refs/heads/develop" \
-  -f sha="$(gh api repos/{owner}/{repo}/git/ref/heads/main -q '.object.sha')"
+# 1) Repo (private — istisnası yok, içerik açık olsa bile config/env geçmişi sızmasın)
+
+gh repo create ahmetgon/MYREPO --private --source=. --remote=origin --push
+
+  
+
+# 2) .env asla commit'lenmez
+
+grep -qxF '.env' .gitignore || echo '.env' >> .gitignore
+
+  
+
+# 3) Sırlar Bitwarden'a — repoya değil
+
+# Login item aç, notlarına hangi app'te hangi env key'i olduğunu yaz.
+
 ```
+
+  
+
+GitHub App yeni repoyu görmüyorsa Coolify klonlayamaz (`coolify-nbg` ayarlarından repo erişimi
+
+verilir). Belirti: deploy "repository not found" ile düşer.
+
+  
+
+### 2.1 Dokümantasyon iskelesi — projeyi Beyin'e bağla
+
+  
+
+Yeni proje **ilk günden** ortak bilgi tabanına (`~/Obsidian/Ahmetgo/Beyin/`) bağlanır. Böylece
+
+altı ay sonra "bu projede neyi neden böyle yapmıştık" sorusunun cevabı duruyor olur ve
+
+`https://beyin.ahmetgo.com` paketine otomatik girer.
+
+  
+
+**Ne zaman ve nasıl not yazılacağı zaten global:** `~/.claude/CLAUDE.md` her oturumda yüklenir,
+
+`/kayit` skill'i formatı taşır. **Konvansiyonu proje dosyalarına kopyalama** — eskiyen kopyalar
+
+çelişiyordu, 2026-08-07'de 8 dosyadan temizlendi. Projede sadece işaretçi ve künye olur.
+
+  
+
+**a) `CLAUDE.md`** — proje köküne:
+
+  
+
+```markdown
+
+## Deploy & Secrets
+
+Deploy için `deploy.md`'yi izle. Tüm sırlar Bitwarden'da (`bw get …`).
+
+Repoya, log'a veya dokümana düz token/parola YAZMA.
+
+Coolify'a env eklerken `is_buildtime: false` zorunlu.
+
+  
+
+## Kayıt
+
+Çalışma günlüğü `log.md` (yeni girdi en üste). Kalıcı notlar ortak bilgi tabanında:
+
+`~/Obsidian/Ahmetgo/Beyin/<proje-slug>/`. Ne zaman/nasıl yazılacağı `~/.claude/CLAUDE.md`
+
+ve `/kayit` skill'inde — buraya kopyalama.
+
+```
+
+  
+
+**b) `log.md`** — proje köküne, künye doldurularak. Künye deploy sırasında öğrendiğin
+
+değerlerle dolar; boş bırakma, altı ay sonra bunları aramak zaman kaybı:
+
+  
+
+```markdown
+
+# <proje> — Çalışma Günlüğü
+
+  
+
+> Her oturumda güncellenir. Yeni girdiler **en üste** (ters kronolojik):
+
+> tarih, bağlam, kök sebep, yapılanlar, kararlar, açık kalanlar.
+
+> **Sır YAZMA** — "Bitwarden'da `<isim>`" yaz.
+
+  
+
+## Proje Künyesi
+
+- **Repo:** `git@github.com:ahmetgon/<repo>.git`
+
+- **Production:** `https://<proje>.ahmetgo.com` · **Staging:** `https://test.<proje>.ahmetgo.com`
+
+- **Coolify:** proje `<proj-uuid>` · app `<app-uuid>`
+
+- **DB:** `<proje>` · kullanıcı `<proje>_user` (parola Bitwarden'da)
+
+- **Framework / Node:** `<…>` · **Branch akışı:** `develop` → staging, `main` → production
+
+  
 
 ---
 
-### Adim 2: Coolify'da Proje Olustur
+```
+
+  
+
+`log.md` git'e girer (sır içermediği için). `.env` girmez.
+
+  
+
+**c) Proje slug'ı** — Beyin klasör adı, `log.md` ve Coolify app adıyla tutarlı olsun
+
+(`~/dev/<x>/<proje>` → `<proje>`). Tutarsız slug, notların iki ayrı klasöre dağılmasına yol açar.
+
+  
+
+---
+
+  
+
+## 3. Proje + uygulama oluştur
+
+  
 
 ```bash
-curl -s http://95.216.191.135:8000/api/v1/projects \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"<proje-adi>","description":"<aciklama>"}'
+
+proj=$(curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+
+-d '{"name":"MYAPP"}' $B/projects | jq -r .uuid)
+
+  
+
+au=$(curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d "{
+
+\"project_uuid\":\"$proj\",
+
+\"server_uuid\":\"gl596l61nn16v24mzqsi2v0e\",
+
+\"environment_name\":\"production\",
+
+\"github_app_uuid\":\"d12n4gdxfywvpgn09v2tyq5x\",
+
+\"git_repository\":\"ahmetgon/MYREPO\",
+
+\"git_branch\":\"main\",
+
+\"build_pack\":\"dockerfile\",
+
+\"ports_exposes\":\"3000\",
+
+\"name\":\"MYAPP-production\",
+
+\"instant_deploy\":false
+
+}" $B/applications/private-github-app | jq -r .uuid)
+
+  
+
+echo "app uuid: $au"
+
 ```
 
-> Donen UUID'yi kaydet -- sonraki adimlarda kullanilacak.
+  
 
----
+- `instant_deploy` **daima `false`** — `true` API'yi bloke ediyor. Deploy'u 7. adımda ayrı çağır.
 
-### Adim 3: Staging Environment Olustur
+- `build_pack`: **`dockerfile` tercih edilir** (ne kurulduğunu sen kontrol edersin, imaj boyutu
+
+ölçülebilir). `nixpacks` da çalışır ama NODE_ENV tuzağı ve "app type" tespit hataları onda.
+
+Compose gerekiyorsa `dockercompose`.
+
+- Monorepo / özel Dockerfile ise:
+
+  
 
 ```bash
-curl -s http://95.216.191.135:8000/api/v1/projects/<project-uuid>/environments \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"staging"}'
+
+curl -s -X PATCH -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d '{
+
+"base_directory":"/app",
+
+"dockerfile_location":"/Dockerfile.web"
+
+}' $B/applications/$au
+
 ```
 
-> `production` environment varsayilan olarak zaten var.
+  
 
 ---
 
-### Adim 4: Uygulama Olustur (Her Environment Icin)
+  
 
-> **KRITIK:** `git_repository` alanina sadece `owner/repo` formatinda yaz.
-> Coolify `https://github.com/` prefix'ini otomatik ekler.
-> Tam URL yazarsan `https://github.com/https://github.com/...` gibi cift URL hatasi alirsin.
+## 4. Env değişkenleri — **en kritik adım**
+
+  
+
+Coolify'da `is_buildtime` varsayılanı **`true`**'dur. Açıkça `false` vermezsen değer
+
+`--build-arg` olarak geçer ve BuildKit onu **imaj katman geçmişine düz metin** yazar; sunucudaki
+
+herkes `docker history` ile okuyabilir. Bu, 2026-08-07'de 63 uygulamada bulunan sızıntının
+
+tam sebebidir. **Hem `dockerfile` hem `nixpacks` etkilenir.**
+
+  
 
 ```bash
-# Production
-curl -s -X POST "http://95.216.191.135:8000/api/v1/applications/public" \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "project_uuid": "<project-uuid>",
-    "environment_name": "production",
-    "server_uuid": "xhqd61ecwp6n3k9068zqo6i6",
-    "git_repository": "{owner}/{repo}",
-    "git_branch": "main",
-    "build_pack": "nixpacks",
-    "name": "<proje>-production",
-    "domains": "https://<proje>.ahmetgo.com",
-    "ports_exposes": "3000",
-    "install_command": "npm install"
-  }'
 
-# Staging
-curl -s -X POST "http://95.216.191.135:8000/api/v1/applications/public" \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "project_uuid": "<project-uuid>",
-    "environment_name": "staging",
-    "server_uuid": "xhqd61ecwp6n3k9068zqo6i6",
-    "git_repository": "{owner}/{repo}",
-    "git_branch": "develop",
-    "build_pack": "nixpacks",
-    "name": "<proje>-staging",
-    "domains": "https://test.<proje>.ahmetgo.com",
-    "ports_exposes": "3000",
-    "install_command": "npm install"
-  }'
+# Doğru kullanım — HER SIR İÇİN
+
+curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+
+-d "{\"key\":\"API_KEY\",\"value\":\"$(bw get password myapp-api-key)\",
+
+\"is_preview\":false,\"is_buildtime\":false,\"is_literal\":true}" \
+
+$B/applications/$au/envs
+
 ```
 
-> **NOT:** `install_command: "npm install"` her zaman ekle. Nixpacks varsayilan `npm ci` komutu bazi lockfile versiyonlarinda hata verir.
+  
 
-Ardindan **private_key_id'yi DB uzerinden ata** (API bu alani kabul etmiyor):
+- Alan adı **`is_buildtime`**. `is_build_time` / `build_time` API tarafından reddedilir
+
+("This field is not allowed") — yanlış yazarsan sessizce değil, hatayla döner; iyi haber.
+
+- Bir POST **iki satır** yaratır (production + preview kopyası). Normaldir; ikisi de `false` olur.
+
+  
+
+**Build-time gerçekten gereken değişkenler** (`NEXT_PUBLIC_*`, `VITE_*_URL`) için `is_buildtime`
+
+`true` kalmalı — ama o zaman kural 2 devreye girer: **bunlar herkese açıktır.** Tarayıcıya inen
+
+bundle'da yer alırlar. Oraya API anahtarı, token, parola koyma. Koyman gerekiyorsa o anahtar
+
+salt-okunur ve dar kapsamlı olmalı.
+
+  
+
+**Doğrula (deploy sonrası, 9. adımda tekrar):**
+
+  
 
 ```bash
-sshpass -p 'Ahmgon2341*+' ssh -o StrictHostKeyChecking=no root@95.216.191.135 \
-  "docker exec coolify php artisan tinker --execute=\"
-\\\$apps = \App\Models\Application::whereIn('uuid', ['<prod-uuid>', '<stg-uuid>'])->get();
-foreach (\\\$apps as \\\$app) {
-    \\\$app->git_repository = 'git@github.com:{owner}/{repo}.git';
-    \\\$app->private_key_id = 1;
-    \\\$app->save();
-    echo \\\$app->name . ' updated\n';
-}
-\""
+
+ssh -i ~/.ssh/id_ed25519 root@167.233.159.42 \
+
+"docker history --no-trunc \$(docker inspect <container> --format '{{.Image}}') \
+
+| grep -iE 'API_KEY=|SECRET=|TOKEN=|PASSWORD=' | head"
+
+# Boş çıkmalı. Çıkmıyorsa: env'i düzelt, YENİDEN BUILD et (katman geçmişi eski imajda kalır),
+
+# ve sızan anahtarı ROTASYONA SOK — imajı silmek sızıntıyı geri almaz.
+
 ```
 
-> **NEDEN DB GUNCELLEME GEREKLI:**
-> - Coolify API `private_key_id` alanini PATCH ile kabul etmiyor
-> - Uygulama once public olarak olusturulur, sonra DB'den SSH key atanir
-> - `git_repository` de `git@github.com:` SSH formatina cevrilir
+  
 
 ---
 
-### Adim 5: GitHub Actions Deploy Workflow Ekle
+  
 
-> **ONEMLI:** Coolify webhook'u deploy key (SSH) tabanli kurulumlarda CALISMIYOR.
-> Uygulamalar API ile olusturuldugunda `source_id: 0` kaliyor. Coolify webhook'u aliyor
-> (200 OK donuyor) ama uygulamayla eslestiremedigi icin deploy tetiklemiyor.
-> Bu nedenle GitHub Actions workflow kullanilmali.
+## 5. Veritabanı
 
-1. `.github/workflows/deploy.yml` olustur:
-
-```yaml
-name: Deploy to Coolify
-
-on:
-  push:
-    branches:
-      - develop
-      - main
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Coolify Deploy
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            UUID="<production-app-uuid>"
-          else
-            UUID="<staging-app-uuid>"
-          fi
-
-          curl -s -X POST \
-            "http://95.216.191.135:8000/api/v1/deploy?uuid=${UUID}&force=true" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_API_TOKEN }}"
-```
-
-2. GitHub secret ekle:
+  
 
 ```bash
-gh secret set COOLIFY_API_TOKEN -R {owner}/{repo} -b "I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3"
+
+pgr=$(curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" -d "{
+
+\"server_uuid\":\"gl596l61nn16v24mzqsi2v0e\",\"project_uuid\":\"$proj\",
+
+\"environment_name\":\"production\",\"name\":\"MYAPP-db\",
+
+\"postgres_user\":\"myapp_user\",\"postgres_db\":\"myapp\",
+
+\"image\":\"postgres:16-alpine\",\"instant_deploy\":true
+
+}" $B/databases/postgresql)
+
+  
+
+dburl=$(echo "$pgr" | jq -r .internal_db_url) # app bunu kullanır
+
 ```
 
----
+  
 
-### Adim 6: CI Workflow (Opsiyonel ama Onerilen)
+**`internal_db_url` kullan — public port AÇMA.** App ile DB aynı Docker ağındadır, dışarıdan
 
-```yaml
-name: CI
+erişime ihtiyaç yoktur. Coolify UI'daki "Make it publicly available" anahtarına dokunma.
 
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
+2026-07'de tek bir projede bu açık kaldı diye DB 20 gün boyunca credential-list saldırısı yedi
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-```
+(30.737 deneme, 4.321 farklı kullanıcı adı). Yönetim gerekiyorsa SSH tüneli kullan:
 
----
-
-### Adim 7: Domain & SSL
-
-1. DNS zaten wildcard ile hazir (`*.ahmetgo.com` -> sunucu IP)
-2. Coolify'da domain uygulama olusturulurken atandi
-3. SSL otomatik (Let's Encrypt HTTP challenge -- Traefik)
-
-> Ek bir sey yapmaya gerek yok. Ilk deploy sonrasi SSL sertifikasi otomatik alinir (1-2 dk).
-
----
-
-### Adim 8: Test Deploy
+  
 
 ```bash
-# Manuel deploy tetikle
-curl -s -X POST "http://95.216.191.135:8000/api/v1/deploy?uuid=<app-uuid>&force=true" \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3"
+
+ssh -i ~/.ssh/id_ed25519 -fNL 5433:localhost:5432 root@167.233.159.42 # geçici, işi bitince kapat
+
 ```
 
-> Ilk Nixpacks build'i yavas olabilir (~4-5 dk), sonrakiler cache sayesinde hizlidir.
+  
 
----
+**En az yetki** — Coolify'ın oluşturduğu kullanıcı DB sahibidir; başka projeye erişemediğini
 
-## ENVIRONMENT VARIABLES
+teyit et. Aynı DB'ye ikinci bir uygulama bağlanacaksa ayrı kullanıcı aç:
 
-Coolify API ile env var ekleme:
+  
+
+```sql
+
+REVOKE CONNECT ON DATABASE myapp FROM PUBLIC;
+
+-- ikinci uygulama için ayrı, dar yetkili kullanıcı — superuser paylaşma
+
+```
+
+  
+
+`DATABASE_URL`'i app'e yaz (yine `is_buildtime:false`):
+
+  
 
 ```bash
-curl -s -X POST "http://95.216.191.135:8000/api/v1/applications/<app-uuid>/envs" \
-  -H "Authorization: Bearer I250iB2p8b8khXeUQfyt1ML6ToihnTo8h0nusk6U1a9ae8b3" \
-  -H "Content-Type: application/json" \
-  -d '{"key":"VITE_API_URL","value":"https://api.example.com","is_buildtime":true,"is_runtime":true}'
+
+curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+
+-d "{\"key\":\"DATABASE_URL\",\"value\":\"$dburl\",\"is_preview\":false,\"is_buildtime\":false}" \
+
+$B/applications/$au/envs
+
 ```
 
-> Vite'da client-side env variable'lar `VITE_` prefix'i ile baslamali.
-> `is_buildtime: true` olmali cunku Vite env variable'lari build sirasinda inject eder.
+  
 
 ---
 
-## POSTGRESQL ENTEGRASYONU (GEREKTIGINDE)
+  
 
-### Coolify'da PostgreSQL Kurulumu
+## 6. Persistent storage (gerekiyorsa)
 
-PostgreSQL, Coolify projesi icinde kurulmali -- boylece app container'lari ile ayni internal Docker network'te olur.
-
-1. Coolify Dashboard -> ilgili proje -> **New Resource** -> **PostgreSQL**
-2. Olusan PostgreSQL'in **internal hostname**'ini ve sifresini al
-3. `DATABASE_URL` formati: `postgres://postgres:<pass>@<internal-hostname>:5432/postgres`
-
-> **KRITIK:** PostgreSQL hostname'i Coolify internal network'te gecerlidir. Lokal makineden bu adrese erisilemez.
-
-### Mevcut PostgreSQL (iqloop projesi)
-
-| Alan | Deger |
-|------|-------|
-| Container | j10tqzp5mr7pub0sje1f8k3r |
-| User/Pass | postgres / 1XaEBqdf5BC2HNfVKATce9eFQchasaWWx2yFL19O48o5eW3Th7sVSlbuVI71juEN |
-| Internal URL | postgres://postgres:1XaEBqdf5BC2HNfVKATce9eFQchasaWWx2yFL19O48o5eW3Th7sVSlbuVI71juEN@j10tqzp5mr7pub0sje1f8k3r:5432/postgres |
-
-### Prisma Kullanacaksan
-
-- **Prisma 6.x kullan** (7.x breaking change'ler iceriyor, henuz stabil degil)
-- `getPrisma()` lazy pattern kullan (build sirasinda DB baglantisi denemesini onler)
-- Dynamic import kullan: `const { getPrisma } = await import("@/lib/db")`
-- Build komutu: `"build": "prisma generate && prisma migrate deploy && <framework-build>"`
-- Lokal'den migration olusturmak icin `prisma migrate diff` kullan (sunucu DB'ye lokal'den erisilemez)
-
----
-
-## TROUBLESHOOTING
-
-### Deploy log kontrol
+  
 
 ```bash
-sshpass -p 'Ahmgon2341*+' ssh -o StrictHostKeyChecking=no root@95.216.191.135 \
-  "docker exec coolify tail -50 /var/www/html/storage/logs/laravel.log"
+
+curl -s -X POST -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+
+-d '{"name":"MYAPP-data","mount_path":"/app/data","type":"persistent"}' \
+
+$B/applications/$au/storages
+
 ```
 
-### Sik Karsilasilan Hatalar ve Cozumleri
+  
 
-| Hata | Sebep | Cozum |
-|------|-------|-------|
-| `https://github.com/https://github.com/...` cift URL | `git_repository`'ye tam URL yazilmis | Sadece `owner/repo` formati kullan |
-| `could not read Username for 'https://github.com'` | Private repo, SSH key yok | Deploy key ekle + DB'den `private_key_id` ata |
-| `npm ci` exit code 1 | lockfileVersion / Node surumu uyumsuz | `install_command: "npm install"` override et |
-| `This field is not allowed: private_key_id` | API bu alani kabul etmiyor | DB'den `php artisan tinker` ile guncelle |
-| Webhook 200 OK ama deploy tetiklenmiyor | Deploy key kurulumunda `source_id: 0` kaliyor | GitHub Actions workflow kullan |
-| SSL cakismasi / timeout | Cloudflare proxy acik | Cloudflare'de DNS only (gri bulut) kullan |
-| Vite site aciliyor ama bos sayfa | `dist/` klasoru serve edilmiyor | `serve` veya `vite preview --host 0.0.0.0` kullan |
-| `VITE_*` env variable'lar calismiyor | Build-time env olarak tanimlanmamis | Coolify'da `is_buildtime: true` yap |
-| Git author access hatasi | Lokal git email Vercel/GitHub ile eslesmiyor | `git config user.email` ayarla |
-| Ilk deploy basarisiz, ikinci basarili | Nixpacks cache sorunu | `force=true` ile tekrar deploy et |
+`type` **mutlaka `"persistent"`** (`volume` / `bind` reddedilir). Oluşan volume adı:
+
+`<app-uuid>-MYAPP-data`. Volume yedeği `backup-files.sh` tarafından otomatik alınır
+
+(2026-07-03'ten beri `docker volume ls -q` ile hepsi) — 9. adımda doğrulayacaksın.
+
+  
 
 ---
 
-## PROJE BILGILERI SABLONU
+  
 
-> Yeni projeye baslarken bu tabloyu doldur:
+## 7. Deploy + doğrulama
 
-| Alan | Deger |
-|------|-------|
-| Proje Adi | |
-| GitHub Repo | `git@github.com:ahmetgon/<repo>.git` |
-| Framework | Vite + React + Tailwind |
-| Node Version | 20 |
-| Build Komutu | `npm run build` |
-| Start Komutu | `npx serve dist -s -l 3000` |
-| Install Komutu | `npm install` |
-| Port | 3000 |
-| Production Domain | `https://<proje>.ahmetgo.com` |
-| Staging Domain | `https://test.<proje>.ahmetgo.com` |
-| Coolify Project UUID | |
-| Coolify Production App UUID | |
-| Coolify Staging App UUID | |
-| SSH Deploy Key ID | 1 |
-| Veritabani Gerekli mi? | |
+  
+
+```bash
+
+curl -s -X POST -H "Authorization: Bearer $T" "$B/deploy?uuid=$au"
+
+  
+
+# durum
+
+ssh -i ~/.ssh/id_ed25519 root@167.233.159.42 'docker exec $(docker ps --format "{{.Names}}"|grep coolify-db|head -1) \
+
+psql -U coolify -d coolify -tA -F"|" -c "SELECT status,created_at FROM application_deployment_queues ORDER BY created_at DESC LIMIT 1;"'
+
+```
+
+  
+
+Domain vermediysen Coolify otomatik `<uuid>.167.233.159.42.sslip.io` test domain'i verir →
+
+`curl -k https://<sslip>/` ile DNS'e dokunmadan doğrula.
+
+  
+
+**İmaj boyutunu ölç** (kural 7):
+
+  
+
+```bash
+
+ssh -i ~/.ssh/id_ed25519 root@167.233.159.42 "docker images --format '{{.Repository}} {{.Size}}' | grep $au"
+
+```
+
+  
+
+Beklediğinden büyükse **sebebini bul, tahmin etme**. `aday-worker` 15.7 GB'dı; ölçünce %71'inin
+
+`torch`'un GPU build'i olduğu çıktı (CX53'te GPU yok). Python'da `--extra-index-url .../whl/cpu`
+
++ `torch==…+cpu` ile 0.92 GB'a indi. Disk şu an **%75** — her GB gerçek.
+
+  
 
 ---
 
-## NOTLAR
+  
 
-- Coolify v4 beta -- API degisebilir
-- Container adlari UUID formatinda (Coolify v4 davranisi)
-- `coolify-db` (postgres:15) Coolify'in kendi DB'si -- dokunma
-- Public port acmak icin Hetzner Firewall'a kural eklenmeli
-- Ilk Nixpacks build'i yavas (~4-5 dk), sonrakiler cache sayesinde hizli
-- Tum repolar private -- her yeni repo icin deploy key eklemeyi unutma
-- Cloudflare proxy her zaman kapali olmali
+## 8. Domain + DNS + sertifika
+
+  
+
+```bash
+
+# 1) app'e domain ekle
+
+curl -s -X PATCH -H "Authorization: Bearer $T" -H "Content-Type: application/json" \
+
+-d '{"domains":"https://app.ahmetgo.com"}' $B/applications/$au
+
+  
+
+# 2) Traefik label'ları için restart (rebuild DEĞİL)
+
+curl -s -X POST -H "Authorization: Bearer $T" $B/applications/$au/restart
+
+  
+
+# 3) DNS — Cloudflare panelinden ELLE:
+
+# Tür A · İsim <app> · İçerik 167.233.159.42 · Proxy KAPALI (DNS only) · TTL 60
+
+# Proxy'yi açma: turuncu bulut açıkken Let's Encrypt HTTP-01 doğrulaması Traefik'e ulaşamaz,
+
+# sertifika hiç gelmez. Cert oturduktan sonra istersen açabilirsin.
+
+  
+
+# 4) sertifika gelmezse ACME'yi tetikle
+
+ssh -i ~/.ssh/id_ed25519 root@167.233.159.42 'docker restart coolify-proxy'
+
+  
+
+# 5) doğrula
+
+curl -s -o /dev/null -w '%{http_code} cert=v%{ssl_verify_result}\n' https://app.ahmetgo.com/
+
+# cert=v0 → geçerli. API kökü 404 verebilir, normal.
+
+```
+
+  
+
+> DNS **elle** yapılıyor; deploy akışının Cloudflare API token'ına ihtiyacı yok (sunucuda ve
+
+> Coolify env'lerinde bunu kullanan hiçbir şey yok — doğrulandı 2026-08-07).
+
+> `*.ahmetgo.com` wildcard'ı hâlâ eski sunucuya bakıyor olabilir; **explicit A kaydı onu ezer**,
+
+> o yüzden her app için açık A kaydı aç.
+
+> `rhinorunner.com` ve müşteri domainleri **farklı Cloudflare hesabında**.
+
+> **Traefik ACME'yi kendiliğinden yeniden denemez** — DNS'i sonradan düzelttiysen proxy'yi restart et.
+
+> Alan adı çözülmüyorsa önce **kayıt şirketinde askıya alınmış mı** bak (Natro'da yaşandı):
+
+> belirti, DNS'in doğru görünüp sitenin hiç açılmamasıdır.
+
+  
+
+---
+
+  
+
+## 9. Yayına aldıktan sonra — zorunlu güvenlik doğrulaması
+
+  
+
+Bunlar "sonra bakarız" listesi değil; her biri daha önce atlandığı için sorun çıkardı.
+
+  
+
+```bash
+
+S="ssh -i ~/.ssh/id_ed25519 root@167.233.159.42"
+
+  
+
+# 1) Sır imaj katmanlarında mı? (kural 1) — BOŞ ÇIKMALI
+
+$S "docker history --no-trunc \$(docker inspect <container> --format '{{.Image}}') \
+
+| grep -iE 'KEY=|SECRET=|TOKEN=|PASSWORD=' | head"
+
+  
+
+# 2) DB dışarı açık mı? (kural 3) — 0 ÇIKMALI
+
+$S 'docker exec $(docker ps --format "{{.Names}}"|grep coolify-db|head -1) \
+
+psql -U coolify -d coolify -tA -c "SELECT count(*) FROM standalone_postgresqls WHERE is_public=true;"'
+
+$S 'ss -tlnp | grep -E ":5432|:3306|:6379"' # boş çıkmalı
+
+  
+
+# 3) Beklenmedik açık port var mı?
+
+$S 'ss -tlnp | grep "0.0.0.0"'
+
+# Meşru olanlar: 22, 80, 443, 6001/6002 (coolify-realtime). Başka bir şey → araştır.
+
+  
+
+# 4) Yedek kapsamına girdi mi? (kural 6) — ERTESİ GÜN kontrol et
+
+$S 'tail -3 /data/backups/logs/cron.log; ls /data/backups/db/$(date +%F)/ | grep -i myapp'
+
+$S 'docker volume ls -q | grep <app-uuid>' # volume varsa backup-files.sh alır
+
+  
+
+# 5) Falco yeni uygulamada alarm veriyor mu?
+
+$S 'journalctl -u falco-modern-bpf --since "1 hour ago" | grep -i warning | tail'
+
+```
+
+  
+
+**Yedek doğrulaması neden zorunlu:** `backup-db.sh` DB'leri `docker ps` ile otomatik keşfeder,
+
+yani yeni proje **normalde** kapsama girer. Ama 2026-07-10'da keşif mantığı 23 canlı DB'yi
+
+sessizce atladı ve log yine `OK=31 FAIL=0` yazdı. **Log'un "OK" demesi yedeğin alındığı anlamına
+
+gelmez — dosyanın varlığını ve boyutunu gör.** Bugünkü sağlıklı durum: `OK=81 FAIL=0`, 327 MB.
+
+  
+
+---
+
+  
+
+## 10. Proje kaydı — kickoff notunu yaz
+
+  
+
+Deploy bitti, doğrulamalar temiz. **Kapatmadan önce** kaydı yaz; yoksa bu oturumun bilgisi
+
+(neden bu stack, hangi alternatif elendi, hangi tuzağa takıldın) kaybolur.
+
+  
+
+1. **`log.md` künyesini doldur** — az önce öğrendiğin gerçek değerlerle: app uuid, domain,
+
+DB adı, build pack. Boş placeholder bırakma.
+
+2. **`/kayit`** çalıştır → `~/Obsidian/Ahmetgo/Beyin/<proje>/<tarih>-kickoff-ve-ilk-deploy.md`.
+
+Kickoff notunda en az şunlar olmalı:
+
+- **Proje ne, kim için** — bir paragraf, teknik olmayan biri de anlasın.
+
+- **Stack kararı ve gerekçesi** — özellikle **elenen alternatif** ve neden elendiği.
+
+- **Deploy'da takıldıkların** — çözümüyle. Bir sonraki proje aynı duvara toslamasın.
+
+- **Açık kalanlar** — staging kurulmadı, monitoring yok, X env'i geçici, vb.
+
+3. Frontmatter'da `gizlilik: ic` (varsayılan). Müşteri adı/ticari detay hassassa `sir` yap —
+
+`sir` hiçbir yayın paketine girmez.
+
+4. Başka projede benzer iş yaptıysak `ilgili:` alanına ekle. Sistemin değeri burada:
+
+`grep -rl "<konu>" ~/Obsidian/Ahmetgo/Beyin/`
+
+  
+
+> Oturum sonunda not yazılmadıysa hook (`~/.claude/bin/beyin.py`) bunu **borç** olarak kaydeder
+
+> ve bir sonraki oturumun başında hatırlatır — `python3 ~/.claude/bin/beyin.py --borc` ile de
+
+> görebilirsin. Yani unutulursa kaybolmaz, ama borç birikir.
+
+  
+
+**Yeni proje ilk kez `Beyin/` altına yazınca** paket listesine girsin diye:
+
+  
+
+```bash
+
+cd ~/dev/beyin/beyin && ./yayinla.sh # derle + güvenlik kapısı (yayınlamaz)
+
+./yayinla.sh --gonder # kapı temizse canlıya
+
+```
+
+  
+
+Kapı kırmızı yanarsa **yayınlama** — çıktıdaki her şüpheli dizeye tek tek karar ver. Gerçek
+
+sırsa kaynaktan sil **ve rotate et**; zararsızsa `izin-listesi.txt`'e ekle.
+
+  
+
+---
+
+  
+
+## 11. Tuzaklar (yaşanmış)
+
+  
+
+| Belirti | Sebep / Çözüm |
+
+|---|---|
+
+| Sırlar `docker history`'de görünüyor | `is_buildtime` açıkça `false` verilmemiş (varsayılan `true`). Düzelt + **yeniden build** + anahtarı rotate et |
+
+| `is_build_time` API'de reddediliyor | Doğru alan adı **`is_buildtime`** |
+
+| Env iki kez görünüyor | Coolify her env için production + preview çifti yaratır. Normal |
+
+| `instant_deploy:true` ile API takılır | `false` kullan, sonra ayrı `/deploy` çağır |
+
+| Build: `sh: tsc: not found` (exit 127) | Coolify env'ine **`NODE_ENV=production` EKLEME** — build'de dev-deps atlanır. Dockerfile kendi NODE_ENV'ini set etsin |
+
+| Build: nixpacks "failed to detect app type" / "Dockerfile not found" | `base_directory` / `dockerfile_location` verilmemiş |
+
+| Build `nix-env`'de exit 255 | Paralel build'de geçici → sadece **redeploy** |
+
+| HTTPS 000 / TRAEFIK DEFAULT CERT | ACME tetiklenmedi → `docker restart coolify-proxy` (cert 1-2 dk sonra; o sırada 000 normal). **Traefik kendiliğinden yeniden denemez** |
+
+| `curl -k` ile "çalışıyor" görünüp tarayıcıda hata | `-k` sertifika doğrulamasını kapatır — **yanıltır**. `%{ssl_verify_result}` ile bak |
+
+| storage `type` reddedildi | `type:"persistent"` (volume/bind değil) |
+
+| Coolify env list API'si değer döndürmez | Gerçek değer için `docker exec <c> env` |
+
+| `pre_deployment_command` yeni dosyayı görmüyor | Komut **ESKİ container'da** koşar. Migration gibi yeni-kodla gelen işleri container **CMD/entrypoint**'ine al |
+
+| `docker restart` env değişikliğini almadı | Coolify'da env değişince **redeploy** gerekir, restart yetmez |
+
+| Proje notları iki ayrı `Beyin/` klasörüne dağıldı | Proje slug'ı tutarsız (`~/dev/x/proje` klasör adı esas alınır). Klasörleri birleştir, `log.md` künyesindeki adı da hizala |
+
+| Yeni proje `beyin.ahmetgo.com` paketinde yok | Not yazıldı ama yayınlanmadı → `cd ~/dev/beyin/beyin && ./yayinla.sh --gonder` |
+
+| Oturum bitti, not yazılmadı | Hook borç kaydı tutar: `python3 ~/.claude/bin/beyin.py --borc`. Arşivdeki transkriptten sonradan yazılabilir |
+
+| Disk hızla doluyor | `docker-temizle.sh` (cron 05:00) 48 saatlik imajları ve staging'de son 2 dışındakileri siler. İmajlar `/var/lib/containerd`'de **çift** saklanır — `du /var/lib/docker`'a bakıp "sorun yok" deme |
+
+  
+
+---
+
+  
+
+## 12. Faydalı komutlar
+
+  
+
+```bash
+
+# app listesi
+
+curl -s -H "Authorization: Bearer $T" $B/applications | jq -r '.[]|.name+" "+.uuid'
+
+  
+
+# app logu / disk / konteyner sağlığı
+
+S="ssh -i ~/.ssh/id_ed25519 root@167.233.159.42"
+
+$S 'docker logs --tail 40 $(docker ps -q -f name=<uuid>)'
+
+$S 'df -h /; docker system df'
+
+$S 'docker ps --filter health=unhealthy --format "{{.Names}} {{.Status}}"'
+
+  
+
+# env'lerin build-time durumu (tüm sunucu)
+
+$S 'docker exec $(docker ps --format "{{.Names}}"|grep coolify-db|head -1) \
+
+psql -U coolify -d coolify -tA -F"|" -c "SELECT is_buildtime,count(*) FROM environment_variables GROUP BY 1;"'
+
+```
+
+  
+
+---
+
+  
+
+## 13. Bilinen teknik borç (yeni projeyi etkilemez, ama bilmen gerek)
+
+  
+
+- **`is_buildtime=true` 1223 satır** — mevcut uygulamaların çoğu hâlâ sızıntılı. Yeni proje bu
+
+listeye eklenmesin diye 4. adım var. Tam çalışma listesi: `build-arg-sizinti-20260807.md`.
+
+- **Dışa açık port 3000** (usesend) — Traefik/TLS baypas ediyor, kapatılmayı bekliyor.
+
+- **Disk %75** — yeni projede imaj boyutuna dikkat.
+
+- **GitHub repo mirror pasif** — `/root/.gh-backup-token`'a read-only PAT konulmadığı için
+
+yedekte secrets var, repo mirror yok.
+
+  
+
+> Oturum geçmişi ve karar kayıtları: `log.md`. Sunucu güvenlik duruşu: `guvenlik-durusu.md`.

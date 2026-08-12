@@ -74,6 +74,72 @@ export const exerciseMediaMap: Record<string, ExerciseMedia> = {
     gif: '/exercises/deep-breath.gif',
     fallbackGif: PLACEHOLDER,
   },
+
+  // --- Tenis planı (Türkçe adlar) ---
+  'Yerinde diz çekme': {
+    gif: '/exercises/high-knees-march.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Ayakta gövde twisti': {
+    gif: '/exercises/standing-torso-twist.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Kalça + bilek çevirme': {
+    gif: '/exercises/hip-circles.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Yana hamle': {
+    gif: '/exercises/side-lunge.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Sıçramalı squat': {
+    gif: '/exercises/jump-squat.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Rus twisti': {
+    gif: '/exercises/russian-twist.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  Şınav: {
+    gif: '/exercises/pushups.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Patinajcı sıçrayışı': {
+    gif: '/exercises/skater-jump.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Geri hamle': {
+    gif: '/exercises/reverse-lunge.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Plank omuz dokunuşu': {
+    gif: '/exercises/plank-shoulder-tap.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Bisiklet mekiği': {
+    gif: '/exercises/bicycle-crunch.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  Tırmanıcı: {
+    gif: '/exercises/Mountain-Climbers.webp',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Kobra esnemesi': {
+    gif: '/exercises/cobra-stretch.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Oturarak gövde rotasyon esnemesi': {
+    gif: '/exercises/seated-spinal-twist.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Bilek & önkol esnemesi': {
+    gif: '/exercises/wrist-forearm-stretch.gif',
+    fallbackGif: PLACEHOLDER,
+  },
+  'Çocuk pozu': {
+    gif: '/exercises/chlids-pose.gif',
+    fallbackGif: PLACEHOLDER,
+  },
 };
 
 export function getMedia(name: string): ExerciseMedia {

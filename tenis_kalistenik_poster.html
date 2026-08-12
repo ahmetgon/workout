@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tenise Özel 15 Dakika Kalistenik — Animasyonlu</title>
+<style>
+  :root{
+    --ink:#12211a;
+    --muted:#5c6b62;
+    --paper:#fbfcf6;
+    --card:#ffffff;
+    --ball:#c8dd3a;
+    --ball-deep:#a7bf1f;
+    --court:#1f6f8b;
+    --court-soft:#e4f0f2;
+    --clay:#c9552e;
+    --clay-soft:#f7e7e0;
+    --rot:#7b4fb0;
+    --rot-soft:#efe7f7;
+    --core:#c48a1a;
+    --core-soft:#f7ecd4;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(circle at 15% 0%, #eef4d8 0%, transparent 45%),
+      radial-gradient(circle at 100% 100%, #e0eef1 0%, transparent 40%),
+      var(--paper);
+    color:var(--ink);
+    padding:20px 14px;
+    line-height:1.4;
+    -webkit-font-smoothing:antialiased;
+  }
+  .poster{
+    max-width:760px;
+    margin:0 auto;
+    background:var(--card);
+    border-radius:22px;
+    box-shadow:0 18px 50px rgba(20,40,30,.12), 0 2px 8px rgba(20,40,30,.06);
+    overflow:hidden;
+    border:1px solid #edf0e6;
+  }
+
+  /* HEADER */
+  .head{
+    position:relative;
+    padding:30px 30px 26px;
+    background:linear-gradient(135deg,#16332a 0%, #1f6f8b 130%);
+    color:#fff;
+    overflow:hidden;
+  }
+  .head::after{
+    content:"";
+    position:absolute;
+    right:-46px; top:-46px;
+    width:170px; height:170px;
+    background:radial-gradient(circle at 50% 50%, var(--ball) 0 60%, transparent 62%);
+    opacity:.22;
+  }
+  .head .seam{
+    position:absolute; right:8px; top:6px;
+    font-size:120px; line-height:1; opacity:.16; transform:rotate(8deg);
+  }
+  .kicker{
+    display:inline-block;
+    font-size:11px; letter-spacing:.18em; text-transform:uppercase;
+    font-weight:700; color:var(--ball);
+    background:rgba(255,255,255,.08);
+    padding:5px 11px; border-radius:100px; margin-bottom:12px;
+  }
+  h1{
+    font-size:31px; line-height:1.08; font-weight:800; letter-spacing:-.5px;
+    margin-bottom:10px; max-width:15ch;
+  }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .chip{
+    font-size:12px; font-weight:600; color:#eafaf0;
+    background:rgba(255,255,255,.13);
+    border:1px solid rgba(255,255,255,.18);
+    padding:5px 11px; border-radius:100px;
+  }
+  .chip b{color:var(--ball);}
+
+  /* TAP BANNER */
+  .banner{
+    display:flex; align-items:center; gap:10px;
+    background:linear-gradient(90deg,#f2f8dc,#eaf3f4);
+    border-bottom:1px solid #e6ebe0;
+    padding:12px 22px; font-size:13px; color:#2c4238; font-weight:600;
+  }
+  .banner .pl{
+    flex:0 0 auto; width:24px; height:24px; border-radius:50%;
+    background:var(--ball-deep); color:#16332a; font-size:11px;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* SECTION */
+  .sec{ padding:22px 26px 8px; }
+  .sec + .sec{ border-top:1px dashed #e6ebe0; }
+  .sechead{
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    margin-bottom:14px;
+  }
+  .sectitle{ display:flex; align-items:center; gap:10px; }
+  .dot{ width:11px; height:11px; border-radius:50%; }
+  .sectitle h2{ font-size:16px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+  .sectime{
+    font-size:13px; font-weight:800; color:var(--court);
+    background:var(--court-soft); padding:4px 11px; border-radius:100px; white-space:nowrap;
+  }
+  .note{ font-size:12.5px; color:var(--muted); margin:-6px 0 14px; }
+  .note b{ color:var(--ink); }
+
+  /* MOVES (clickable) */
+  .move{
+    display:flex; align-items:center; gap:13px;
+    padding:11px 12px; border-radius:13px; margin-bottom:8px;
+    background:#fafbf5; border:1px solid #eef1e7;
+    text-decoration:none; color:inherit;
+    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .move:hover{ transform:translateY(-1px); box-shadow:0 6px 16px rgba(20,40,30,.08); border-color:var(--ball); }
+  .num{
+    flex:0 0 30px; width:30px; height:30px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:14px; color:#16332a;
+    background:linear-gradient(135deg,var(--ball) 0%,var(--ball-deep) 100%);
+  }
+  .body{ flex:1 1 auto; min-width:0; }
+  .name{ font-size:15px; font-weight:700; }
+  .name .en{ font-weight:500; color:var(--muted); font-size:13px; }
+  .tags{ margin-top:3px; display:flex; flex-wrap:wrap; gap:5px; }
+  .tag{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:100px; letter-spacing:.02em; }
+  .t-kardiyo{ background:var(--core-soft); color:#8a6412; }
+  .t-lateral{ background:var(--court-soft); color:#155163; }
+  .t-patlayici{ background:var(--clay-soft); color:#a5401f; }
+  .t-rotasyon{ background:var(--rot-soft); color:#5c3a86; }
+  .t-core{ background:#e9f3df; color:#4b6b2c; }
+  .t-omuz{ background:#eae7f7; color:#4a3f86; }
+  .play{
+    flex:0 0 auto; width:30px; height:30px; border-radius:50%;
+    background:#16332a; color:var(--ball); font-size:11px;
+    display:flex; align-items:center; justify-content:center;
+    padding-left:2px;
+  }
+  .time{
+    flex:0 0 auto; font-size:13px; font-weight:800; color:#16332a;
+    background:#fff; border:1.5px solid var(--ball); padding:6px 10px; border-radius:10px;
+    white-space:nowrap; text-align:center; line-height:1.15;
+  }
+  .time small{ display:block; font-size:9.5px; font-weight:700; color:var(--muted); letter-spacing:.03em; }
+
+  /* FOOTER */
+  .foot{
+    background:#16332a; color:#d9ecdf; padding:18px 26px 20px;
+    display:flex; gap:14px; align-items:flex-start;
+  }
+  .foot .ic{ font-size:20px; line-height:1; }
+  .foot .txt{ font-size:12.5px; line-height:1.5; }
+  .foot .txt b{ color:var(--ball); }
+  .total{ margin-left:auto; text-align:right; flex:0 0 auto; }
+  .total .n{ font-size:26px; font-weight:800; color:#fff; line-height:1; }
+  .total .l{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ball); font-weight:700; }
+  .src{ font-size:10.5px; color:#8fae9d; padding:10px 26px 18px; background:#16332a; line-height:1.5; }
+  .src a{ color:#b9d34a; }
+
+  @media (max-width:520px){
+    h1{ font-size:26px; }
+    .head{ padding:24px 20px 22px; }
+    .sec{ padding:18px 16px 6px; }
+    .foot{ padding:16px; flex-wrap:wrap; }
+    .total{ margin-left:0; text-align:left; width:100%; margin-top:4px;
+            display:flex; align-items:baseline; gap:8px; }
+    .name .en{ display:block; }
+  }
+  @media print{
+    body{ background:#fff; padding:0; }
+    .poster{ box-shadow:none; border:none; border-radius:0; max-width:100%; }
+    .move{ break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+  <div class="poster">
+
+    <div class="head">
+      <div class="seam">🎾</div>
+      <span class="kicker">Kalistenik • Tenis Performans</span>
+      <h1>Tenise Özel 15 Dakika</h1>
+      <div class="meta">
+        <span class="chip">🚫 Aletsiz</span>
+        <span class="chip">🧘 Mat üzerinde</span>
+        <span class="chip">⏱️ Toplam <b>15 dk</b></span>
+      </div>
+    </div>
+
+    <div class="banner">
+      <span class="pl">▶</span>
+      <span>Her karta dokun → o hareketin <b>animasyonlu gösterimi</b> açılır</span>
+    </div>
+
+    <!-- ISINMA -->
+    <div class="sec">
+      <div class="sechead">
+        <div class="sectitle">
+          <span class="dot" style="background:var(--court)"></span>
+          <h2>1 · Isınma</h2>
+        </div>
+        <span class="sectime">2,5 dk</span>
+      </div>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=high+knees+exercise+how+to">
+        <div class="num">1</div>
+        <div class="body">
+          <div class="name">Yerinde diz çekme <span class="en">/ high knees</span></div>
+          <div class="tags"><span class="tag t-kardiyo">nabız açma</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=arm+circles+warm+up+how+to">
+        <div class="num">2</div>
+        <div class="body">
+          <div class="name">Kol çevirme <span class="en">/ arm circles</span></div>
+          <div class="tags"><span class="tag t-omuz">omuz</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=standing+torso+twist+warm+up">
+        <div class="num">3</div>
+        <div class="body">
+          <div class="name">Ayakta gövde twisti <span class="en">/ standing twist</span></div>
+          <div class="tags"><span class="tag t-rotasyon">rotasyon</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=hip+circles+and+wrist+rolls+mobility">
+        <div class="num">4</div>
+        <div class="body">
+          <div class="name">Kalça + bilek çevirme <span class="en">/ hip &amp; wrist rolls</span></div>
+          <div class="tags"><span class="tag t-omuz">eklem hazırlığı</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">30 sn</div>
+      </a>
+    </div>
+
+    <!-- ANA BÖLÜM -->
+    <div class="sec">
+      <div class="sechead">
+        <div class="sectitle">
+          <span class="dot" style="background:var(--ball-deep)"></span>
+          <h2>2 · Ana Bölüm</h2>
+        </div>
+        <span class="sectime">10 dk</span>
+      </div>
+      <p class="note"><b>2 tur.</b> Her hareket <b>40 sn çalış / 20 sn dinlen</b> (= 1 dk). 10 hareket × 1 dk = 10 dk.</p>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/cardio-jumping-jacks">
+        <div class="num">1</div>
+        <div class="body">
+          <div class="name">Jumping Jack <span class="en">/ jumping jack</span></div>
+          <div class="tags"><span class="tag t-kardiyo">kardiyo</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/side-lunges">
+        <div class="num">2</div>
+        <div class="body">
+          <div class="name">Yana hamle <span class="en">/ side lunge</span></div>
+          <div class="tags"><span class="tag t-lateral">yanal hareket</span><span class="tag t-core">bacak</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/jump-squats">
+        <div class="num">3</div>
+        <div class="body">
+          <div class="name">Sıçramalı squat <span class="en">/ squat jump</span></div>
+          <div class="tags"><span class="tag t-patlayici">patlayıcı güç</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/bodyweight-russian-twist">
+        <div class="num">4</div>
+        <div class="body">
+          <div class="name">Rus twisti <span class="en">/ Russian twist</span></div>
+          <div class="tags"><span class="tag t-rotasyon">rotasyonel core</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/bodyweight/male/chest/push-up/">
+        <div class="num">5</div>
+        <div class="body">
+          <div class="name">Şınav <span class="en">/ push-up (dizden olabilir)</span></div>
+          <div class="tags"><span class="tag t-omuz">omuz + göğüs</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=skater+jumps+lateral+exercise+how+to">
+        <div class="num">6</div>
+        <div class="body">
+          <div class="name">Patinajcı sıçrayışı <span class="en">/ skater jump</span></div>
+          <div class="tags"><span class="tag t-lateral">yanal</span><span class="tag t-patlayici">patlayıcı</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/bodyweight-reverse-lunge">
+        <div class="num">7</div>
+        <div class="body">
+          <div class="name">Geri hamle <span class="en">/ reverse lunge</span></div>
+          <div class="tags"><span class="tag t-core">tek bacak denge</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=plank+shoulder+taps+exercise+how+to">
+        <div class="num">8</div>
+        <div class="body">
+          <div class="name">Plank omuz dokunuşu <span class="en">/ plank shoulder tap</span></div>
+          <div class="tags"><span class="tag t-core">core stabilite</span><span class="tag t-omuz">omuz</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/bicycle-crunch">
+        <div class="num">9</div>
+        <div class="body">
+          <div class="name">Bisiklet mekiği <span class="en">/ bicycle crunch</span></div>
+          <div class="tags"><span class="tag t-rotasyon">rotasyonel core</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://musclewiki.com/exercise/mountain-climber">
+        <div class="num">10</div>
+        <div class="body">
+          <div class="name">Tırmanıcı <span class="en">/ mountain climber</span></div>
+          <div class="tags"><span class="tag t-kardiyo">kardiyo</span><span class="tag t-core">core</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40/20<small>çalış/dinlen</small></div>
+      </a>
+    </div>
+
+    <!-- SOĞUMA -->
+    <div class="sec">
+      <div class="sechead">
+        <div class="sectitle">
+          <span class="dot" style="background:var(--clay)"></span>
+          <h2>3 · Soğuma & Esneme</h2>
+        </div>
+        <span class="sectime">2,5 dk</span>
+      </div>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=cobra+stretch+yoga+how+to">
+        <div class="num">1</div>
+        <div class="body">
+          <div class="name">Kobra esnemesi <span class="en">/ cobra stretch</span></div>
+          <div class="tags"><span class="tag t-core">karın · sırt</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">30 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=seated+spinal+twist+stretch+how+to">
+        <div class="num">2</div>
+        <div class="body">
+          <div class="name">Oturarak gövde rotasyon esnemesi <span class="en">/ seated spinal twist</span></div>
+          <div class="tags"><span class="tag t-rotasyon">rotasyon</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=wrist+and+forearm+stretch+how+to">
+        <div class="num">3</div>
+        <div class="body">
+          <div class="name">Bilek &amp; önkol esnemesi <span class="en">/ wrist &amp; forearm stretch</span></div>
+          <div class="tags"><span class="tag t-omuz">raket kolu</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+
+      <a class="move" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=child's+pose+yoga+how+to">
+        <div class="num">4</div>
+        <div class="body">
+          <div class="name">Çocuk pozu <span class="en">/ child's pose</span></div>
+          <div class="tags"><span class="tag t-core">gevşeme</span></div>
+        </div>
+        <span class="play">▶</span>
+        <div class="time">40 sn</div>
+      </a>
+    </div>
+
+    <div class="foot">
+      <span class="ic">🎾</span>
+      <div class="txt">
+        <b>Tenis ipucu:</b> Yanal ve patlayıcı hareketlerde (yana hamle, patinajcı, sıçramalı squat)
+        formu hızın önüne koy — dizini ayak parmağı yönünde tut. Rotasyon hareketlerinde gücü
+        <b>gövdenden</b> üret, kollarından değil.
+      </div>
+      <div class="total">
+        <div class="n">15<span style="font-size:14px">dk</span></div>
+        <div class="l">Toplam süre</div>
+      </div>
+    </div>
+    <div class="src">
+      Gösterimler dış kaynaklara açılır (telif nedeniyle GIF'ler postere gömülü değildir):
+      ana hareketler <a href="https://musclewiki.com" target="_blank" rel="noopener">MuscleWiki</a>
+      (ücretsiz, kişili video · ön + yan görünüm); ısınma, esneme ve patinajcı/plank-tap için YouTube video araması.
+    </div>
+
+  </div>
+</body>
+</html>

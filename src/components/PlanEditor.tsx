@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutPlan, WorkoutStep } from '../types';
 import { resetPlan } from '../lib/storage';
+import { getBuiltInPlan } from '../data/plans';
 
 interface PlanEditorProps {
   plan: WorkoutPlan;
@@ -308,6 +309,8 @@ export default function PlanEditor({ plan, onSave, onBack }: PlanEditorProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const isBuiltIn = getBuiltInPlan(plan.id) !== undefined;
+
   const updateStep = (index: number, updated: WorkoutStep) => {
     setDraft((d) => {
       const steps = [...d.steps];
@@ -362,8 +365,8 @@ export default function PlanEditor({ plan, onSave, onBack }: PlanEditorProps) {
   };
 
   const handleReset = () => {
-    const fresh = resetPlan();
-    setDraft({ ...fresh, steps: fresh.steps.map((s) => ({ ...s })) });
+    const fresh = resetPlan(draft.id);
+    if (fresh) setDraft(fresh);
     setShowResetConfirm(false);
     setExpandedId(null);
   };
@@ -386,7 +389,7 @@ export default function PlanEditor({ plan, onSave, onBack }: PlanEditorProps) {
             </svg>
           </button>
           <div className="flex-1">
-            <h1 className="text-base font-bold text-white">Planı Düzenle</h1>
+            <h1 className="text-base font-bold text-white truncate">{draft.name}</h1>
             <p className="text-xs text-gray-500">
               {exerciseCount} egzersiz · {draft.steps.length} adım · ~{Math.round(totalTime / 60)}dk
             </p>
@@ -477,12 +480,14 @@ export default function PlanEditor({ plan, onSave, onBack }: PlanEditorProps) {
               Dinlenme Ekle
             </button>
           </div>
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            className="w-full py-2.5 rounded-xl border border-gray-800 hover:border-gray-700 text-gray-500 hover:text-gray-400 font-medium text-xs transition-colors"
-          >
-            Default plana dön
-          </button>
+          {isBuiltIn && (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="w-full py-2.5 rounded-xl border border-gray-800 hover:border-gray-700 text-gray-500 hover:text-gray-400 font-medium text-xs transition-colors"
+            >
+              Orijinal plana dön
+            </button>
+          )}
         </div>
       </div>
 
@@ -490,9 +495,10 @@ export default function PlanEditor({ plan, onSave, onBack }: PlanEditorProps) {
       {showResetConfirm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-950/80 backdrop-blur-sm pb-8 px-6">
           <div className="w-full max-w-sm bg-gray-900 rounded-3xl p-6 shadow-2xl border border-gray-800">
-            <h3 className="text-lg font-bold text-white mb-2">Default plana dön?</h3>
+            <h3 className="text-lg font-bold text-white mb-2">Orijinal plana dön?</h3>
             <p className="text-gray-400 text-sm mb-6">
-              Tüm değişiklikleriniz silinecek ve plan varsayılan haline döndürülecek.
+              “{plan.name}” planındaki tüm değişiklikleriniz silinecek ve plan
+              orijinal haline döndürülecek.
             </p>
             <div className="flex flex-col gap-3">
               <button
